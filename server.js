@@ -18,7 +18,7 @@ let voteCounts = {
     "Song D": 0
 };
 
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public')));
 
 io.on('connection', (socket) => {
     // Send current votes to new hosts immediately
