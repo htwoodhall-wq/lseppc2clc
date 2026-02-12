@@ -8,21 +8,22 @@
         
         #player-container { border: 2px solid #444; padding: 20px; border-radius: 10px; margin-bottom: 20px; background: #333; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #1DB954; border: none; color: white; border-radius: 5px; margin: 5px; }
-        button.delete { background: #d32f2f; font-size: 12px; padding: 5px 10px; }
+        
+        /* UNLOCK BUTTON STYLE */
+        #unlock-btn { background: #0000ff; color: white; font-size: 20px; padding: 20px; width: 100%; margin-bottom: 20px; border: 2px solid white; display: block; }
         
         .queue-item { background: #444; margin: 5px 0; padding: 10px; display: flex; justify-content: space-between; align-items: center; border-radius: 5px; }
-        .now-playing { font-size: 24px; font-weight: bold; color: #1DB954; margin: 10px 0; }
     </style>
 </head>
 <body>
 
+    <button id="unlock-btn" onclick="unlockAudio()">🔊 CLICK HERE TO START SESSION</button>
+
     <h1>Jukebox Host</h1>
-    <button id="start-btn" onclick="unlockAudio()" style="background: blue; padding: 20px;">🔊 CLICK HERE TO START AUDIO</button>
 
     <div id="player-container">
-        <div id="now-playing-text" class="now-playing">Waiting for songs...</div>
-        <audio id="audio-player" controls style="width: 100%; margin-top: 10px;"></audio>
-        
+        <div id="now-playing-text" style="font-size: 20px; margin-bottom:10px;">Waiting...</div>
+        <audio id="audio-player" controls style="width: 100%;"></audio>
         <br><br>
         <button onclick="playNext()">▶ Play Next</button>
         <button onclick="skipSong()">⏭ Skip</button>
@@ -39,76 +40,67 @@
         const nowPlayingText = document.getElementById('now-playing-text');
         
         let queue = [];
-        let isPlaying = false;
+        let isAudioUnlocked = false;
 
-        // 1. Receive Queue Updates from Server
+        function unlockAudio() {
+            // Play silent audio to unlock browser
+            audioPlayer.play().catch(e => console.log("Silent unlock"));
+            isAudioUnlocked = true;
+            document.getElementById('unlock-btn').style.display = 'none';
+        }
+
         socket.on('updateQueue', (newQueue) => {
             queue = newQueue;
             renderQueue();
             
-            // Auto-play if stopped and queue has items
-            if (!isPlaying && queue.length > 0 && audioPlayer.paused) {
-                // Note: This only works if user has interacted with page once
-                playNext();
+            // If we have songs and audio is unlocked, try to play
+            if (isAudioUnlocked && audioPlayer.paused && queue.length > 0) {
+               playNext(); // Auto-play attempt
             }
         });
 
-        // 2. Play Next Logic
         function playNext() {
             if (queue.length === 0) {
                 nowPlayingText.innerText = "Queue is empty";
-                isPlaying = false;
                 return;
             }
-
-            const nextSong = queue.shift(); // Remove first song
-            
-            // Sync updated queue with server
+            const nextSong = queue.shift(); 
             socket.emit('syncQueue', queue);
 
-            // Play the song
             nowPlayingText.innerText = `Now Playing: ${nextSong.title}`;
             audioPlayer.src = nextSong.url;
             
-            audioPlayer.play().then(() => {
-                isPlaying = true;
-            }).catch(e => {
-                console.log("Auto-play blocked, please click Play", e);
-                nowPlayingText.innerText = `Click Play: ${nextSong.title}`;
+            audioPlayer.play().catch(e => {
+                console.error("Play failed:", e);
+                alert("Please click the 'Play Next' button manually.");
             });
         }
 
-        // 3. Skip Song
         function skipSong() {
             audioPlayer.pause();
             playNext();
         }
 
-        // 4. Remove specific song from queue
         function removeSong(index) {
             queue.splice(index, 1);
-            socket.emit('syncQueue', queue); // Update server
-            renderQueue(); // Update UI
+            socket.emit('syncQueue', queue);
+            renderQueue();
         }
 
-        // 5. Render Queue UI
         function renderQueue() {
             queueList.innerHTML = "";
             queue.forEach((song, index) => {
                 const div = document.createElement('div');
                 div.className = "queue-item";
                 div.innerHTML = `
-                    <span>${index + 1}. ${song.title} <small>(Req by: ${song.requester})</small></span>
-                    <button class="delete" onclick="removeSong(${index})">X</button>
+                    <span>${index + 1}. ${song.title} <small>(${song.requester})</small></span>
+                    <button style="background:#d32f2f" onclick="removeSong(${index})">X</button>
                 `;
                 queueList.appendChild(div);
             });
         }
 
-        // When song ends, play next automatically
-        audioPlayer.onended = function() {
-            playNext();
-        };
+        audioPlayer.onended = function() { playNext(); };
     </script>
 </body>
 </html>
