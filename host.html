@@ -2,22 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Jukebox Host (Live)</title>
+    <title>Jukebox Host</title>
     <style>
         body { font-family: sans-serif; background-color: #222; color: white; padding: 20px; text-align: center; }
         
-        /* THE BIG RED BUTTON */
-        #start-overlay { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.9); z-index: 999; display: flex; 
-            align-items: center; justify-content: center; flex-direction: column;
+        /* THE NEW SIMPLE BUTTON */
+        #start-btn {
+            background-color: #00D100; /* Bright Green */
+            color: black;
+            font-size: 30px;
+            font-weight: bold;
+            padding: 40px;
+            width: 100%;
+            border: 5px solid white;
+            cursor: pointer;
+            margin-bottom: 20px;
+            display: block;
         }
-        #unlock-btn { 
-            background: #ff0000; color: white; font-size: 24px; padding: 30px 50px; 
-            border: 4px solid white; border-radius: 10px; cursor: pointer; font-weight: bold;
-            box-shadow: 0 0 20px rgba(255,0,0,0.5);
-        }
-        
+
         #player-container { border: 2px solid #444; padding: 20px; border-radius: 10px; margin-bottom: 20px; background: #333; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #1DB954; border: none; color: white; border-radius: 5px; margin: 5px; }
         .queue-item { background: #444; margin: 5px 0; padding: 10px; display: flex; justify-content: space-between; align-items: center; border-radius: 5px; }
@@ -25,16 +27,14 @@
 </head>
 <body>
 
-    <div id="start-overlay">
-        <h1>⚠️ SYSTEM READY</h1>
-        <p>Click below to activate the Audio Engine</p>
-        <button id="unlock-btn" onclick="activateEngine()">🔴 CLICK TO START JUKEBOX</button>
-    </div>
+    <button id="start-btn" onclick="activateEngine()">
+        CLICK HERE TO START AUDIO 🔊
+    </button>
 
     <h1>Jukebox Host</h1>
 
     <div id="player-container">
-        <h2 id="status">Status: Waiting for songs...</h2>
+        <h2 id="status">Status: Waiting for start...</h2>
         <h3 id="now-playing" style="color: #1DB954;">---</h3>
         
         <audio id="audio-player" controls style="width: 100%;"></audio>
@@ -53,98 +53,24 @@
         const queueList = document.getElementById('queue-list');
         const statusText = document.getElementById('status');
         const nowPlayingText = document.getElementById('now-playing');
+        const startBtn = document.getElementById('start-btn');
         
         let queue = [];
         let isEngineActive = false;
 
-        // 1. ACTIVATE ENGINE (The "Trick")
+        // 1. ACTIVATE ENGINE
         function activateEngine() {
-            // We load the player but keep it paused at 0:00
-            // This tells the browser "We are ready to play sound"
+            // Play empty sound to unlock browser audio
             audioPlayer.play().then(() => {
                 audioPlayer.pause();
                 isEngineActive = true;
-                document.getElementById('start-overlay').style.display = 'none';
-                statusText.innerText = "Status: 🟢 ENGINE ACTIVE (Ready)";
                 
-                // If there is already a queue, play it now!
+                // Update UI
+                startBtn.style.display = 'none'; // Hide button
+                statusText.innerText = "Status: 🟢 ENGINE ACTIVE";
+                
+                // If songs are waiting, play now
                 if(queue.length > 0) playNext();
-            }).catch((e) => {
-                alert("Browser blocked audio. Please click again.");
-            });
-        }
-
-        // 2. LISTEN FOR SONGS
-        socket.on('updateQueue', (newQueue) => {
-            console.log("Queue updated:", newQueue);
-            queue = newQueue;
-            renderQueue();
-            
-            // If we are active, not playing, and have songs -> PLAY!
-            if (isEngineActive && audioPlayer.paused && queue.length > 0) {
-                playNext();
-            }
-        });
-
-        // 3. PLAY NEXT LOGIC
-        function playNext() {
-            if (queue.length === 0) {
-                statusText.innerText = "Status: Queue Empty";
-                nowPlayingText.innerText = "---";
-                return;
-            }
-
-            const nextSong = queue.shift(); 
-            socket.emit('syncQueue', queue); // Tell server we took a song
-
-            statusText.innerText = "Status: ▶️ Playing";
-            nowPlayingText.innerText = nextSong.title + " (Loading...)";
-
-            audioPlayer.src = nextSong.url;
-            audioPlayer.load(); // Force load
-
-            // Attempt to play
-            var playPromise = audioPlayer.play();
-
-            if (playPromise !== undefined) {
-                playPromise.then(_ => {
-                    // Success!
-                    nowPlayingText.innerText = "🎵 " + nextSong.title;
-                })
-                .catch(error => {
-                    console.error("Play Error:", error);
-                    statusText.innerText = "Status: ⚠️ AUTOPLAY BLOCKED";
-                    nowPlayingText.innerText = "Click 'Skip / Play Next' button manually";
-                });
-            }
-        }
-
-        function skipSong() {
-            audioPlayer.pause();
-            playNext();
-        }
-
-        function removeSong(index) {
-            queue.splice(index, 1);
-            socket.emit('syncQueue', queue);
-            renderQueue();
-        }
-
-        function renderQueue() {
-            queueList.innerHTML = "";
-            queue.forEach((song, index) => {
-                const div = document.createElement('div');
-                div.className = "queue-item";
-                div.innerHTML = `
-                    <span>${index + 1}. ${song.title}</span>
-                    <button style="background:#d32f2f; font-size:12px" onclick="removeSong(${index})">X</button>
-                `;
-                queueList.appendChild(div);
-            });
-        }
-
-        // Auto-play next when song ends
-        audioPlayer.onended = function() { playNext(); };
-    </script>
-</body>
-</html>
+            })
+            .catch((e) => {
+                alert("Error: " + e.message
