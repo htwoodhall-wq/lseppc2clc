@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Live Results (Host)</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background-color: #222; color: white;}
+        .bar-container { display: flex; align-items: flex-end; justify-content: center; height: 400px; gap: 20px; }
+        .bar { width: 100px; background-color: #1DB954; transition: height 0.5s ease; border-radius: 5px 5px 0 0; }
+        .label { margin-top: 10px; font-weight: bold; }
+        .count { margin-bottom: 5px; font-size: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Live Voting Results</h1>
+    
+    <div class="bar-container" id="chart">
+        </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const chartDiv = document.getElementById('chart');
+
+        socket.on('updateVotes', (voteCounts) => {
+            chartDiv.innerHTML = ''; // Clear current chart
+            
+            // Find the max vote to scale the bars (optional visual polish)
+            const maxVotes = Math.max(...Object.values(voteCounts), 10); // Minimum scale of 10
+
+            for (const [song, count] of Object.entries(voteCounts)) {
+                // Calculate height percentage
+                const height = (count / maxVotes) * 100;
+
+                const wrapper = document.createElement('div');
+                
+                wrapper.innerHTML = `
+                    <div class="count">${count}</div>
+                    <div class="bar" style="height: ${height}%;"></div>
+                    <div class="label">${song}</div>
+                `;
+                chartDiv.appendChild(wrapper);
+            }
+        });
+    </script>
+</body>
+</html>
