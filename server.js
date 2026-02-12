@@ -46,3 +46,11 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+function unlockAudio() {
+    // Play a silent sound to unlock the browser's audio engine
+    const audio = new Audio();
+    audio.play().catch(() => {});
+    document.getElementById('start-btn').style.display = 'none'; // Hide button
+    document.getElementById('now-playing-text').innerText = "Audio Unlocked! Waiting for songs...";
+}
