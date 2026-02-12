@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Jukebox Host</title>
+    <style>
+        body { font-family: sans-serif; background-color: #222; color: white; padding: 20px; text-align: center; }
+        
+        #player-container { border: 2px solid #444; padding: 20px; border-radius: 10px; margin-bottom: 20px; background: #333; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #1DB954; border: none; color: white; border-radius: 5px; margin: 5px; }
+        button.delete { background: #d32f2f; font-size: 12px; padding: 5px 10px; }
+        
+        .queue-item { background: #444; margin: 5px 0; padding: 10px; display: flex; justify-content: space-between; align-items: center; border-radius: 5px; }
+        .now-playing { font-size: 24px; font-weight: bold; color: #1DB954; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+    <h1>Jukebox Host</h1>
+
+    <div id="player-container">
+        <div id="now-playing-text" class="now-playing">Waiting for songs...</div>
+        <audio id="audio-player" controls style="width: 100%; margin-top: 10px;"></audio>
+        
+        <br><br>
+        <button onclick="playNext()">▶ Play Next</button>
+        <button onclick="skipSong()">⏭ Skip</button>
+    </div>
+
+    <h3>Up Next</h3>
+    <div id="queue-list"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const audioPlayer = document.getElementById('audio-player');
+        const queueList = document.getElementById('queue-list');
+        const nowPlayingText = document.getElementById('now-playing-text');
+        
+        let queue = [];
+        let isPlaying = false;
+
+        // 1. Receive Queue Updates from Server
+        socket.on('updateQueue', (newQueue) => {
+            queue = newQueue;
+            renderQueue();
+            
+            // Auto-play if stopped and queue has items
+            if (!isPlaying && queue.length > 0 && audioPlayer.paused) {
+                // Note: This only works if user has interacted with page once
+                playNext();
+            }
+        });
+
+        // 2. Play Next Logic
+        function playNext() {
+            if (queue.length === 0) {
+                nowPlayingText.innerText = "Queue is empty";
+                isPlaying = false;
+                return;
+            }
+
+            const nextSong = queue.shift(); // Remove first song
+            
+            // Sync updated queue with server
+            socket.emit('syncQueue', queue);
+
+            // Play the song
+            nowPlayingText.innerText = `Now Playing: ${nextSong.title}`;
+            audioPlayer.src = nextSong.url;
+            
+            audioPlayer.play().then(() => {
+                isPlaying = true;
+            }).catch(e => {
+                console.log("Auto-play blocked, please click Play", e);
+                nowPlayingText.innerText = `Click Play: ${nextSong.title}`;
+            });
+        }
+
+        // 3. Skip Song
+        function skipSong() {
+            audioPlayer.pause();
+            playNext();
+        }
+
+        // 4. Remove specific song from queue
+        function removeSong(index) {
+            queue.splice(index, 1);
+            socket.emit('syncQueue', queue); // Update server
+            renderQueue(); // Update UI
+        }
+
+        // 5. Render Queue UI
+        function renderQueue() {
+            queueList.innerHTML = "";
+            queue.forEach((song, index) => {
+                const div = document.createElement('div');
+                div.className = "queue-item";
+                div.innerHTML = `
+                    <span>${index + 1}. ${song.title} <small>(Req by: ${song.requester})</small></span>
+                    <button class="delete" onclick="removeSong(${index})">X</button>
+                `;
+                queueList.appendChild(div);
+            });
+        }
+
+        // When song ends, play next automatically
+        audioPlayer.onended = function() {
+            playNext();
+        };
+    </script>
+</body>
+</html>

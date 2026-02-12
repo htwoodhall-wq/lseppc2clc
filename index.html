@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luke Coombs Jukebox</title>
+    <style>
+        body { font-family: 'Helvetica Neue', sans-serif; text-align: center; padding: 20px; background-color: #121212; color: white; }
+        .view-section { display: none; max-width: 500px; margin: 0 auto; }
+        .active { display: block; }
+
+        /* Form & Inputs */
+        input { width: 90%; padding: 15px; margin: 10px 0; border-radius: 5px; border: none; font-size: 16px; }
+        .btn { background-color: #1DB954; color: white; border: none; padding: 15px 30px; border-radius: 50px; font-size: 18px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 20px; }
+        
+        /* Song Buttons */
+        .song-btn { display: block; width: 100%; padding: 20px; margin: 10px 0; background: #333; color: white; border: 1px solid #444; border-radius: 10px; font-size: 18px; cursor: pointer; text-align: left; }
+        .song-btn:active { background: #1DB954; }
+        .song-sub { font-size: 12px; color: #aaa; display: block; margin-top: 5px;}
+
+        /* Links */
+        .presave-links a { display: block; padding: 15px; margin: 15px 0; border-radius: 8px; text-decoration: none; font-weight: bold; color: white; }
+        .spotify { background-color: #1DB954; }
+        .apple { background-color: #FA243C; }
+        
+        .disclaimer { font-size: 10px; color: #888; margin-top: 20px; line-height: 1.4; text-align: left; }
+    </style>
+</head>
+<body>
+
+    <div id="landing-view" class="view-section active">
+        <h1>Welcome</h1>
+        <p>Enter your details to request a song.</p>
+        <form id="marketing-form">
+            <input type="text" id="name" placeholder="Full Name" required>
+            <input type="email" id="email" placeholder="Email Address" required>
+            <input type="text" id="postcode" placeholder="Postcode" required>
+            <button type="submit" class="btn">Continue</button>
+        </form>
+        <p class="disclaimer">By clicking Continue, you agree to receive marketing updates...</p>
+    </div>
+
+    <div id="song-view" class="view-section">
+        <h1>Pick a Song</h1>
+        <p>It will be added to the queue.</p>
+        
+        <button class="song-btn" onclick="requestSong('Fast Car', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3')">
+            Fast Car
+            <span class="song-sub">Luke Coombs</span>
+        </button>
+
+        <button class="song-btn" onclick="requestSong('She Got The Best of Me', 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3')">
+            She Got The Best of Me
+            <span class="song-sub">Luke Coombs</span>
+        </button>
+    </div>
+
+    <div id="thank-you-view" class="view-section">
+        <h1>Thank You!</h1>
+        <p>Your song has been added to the queue.</p>
+        <div class="presave-links">
+            <a href="https://open.spotify.com/prerelease/6d8BDUivKfBN7BpoIHVysH?si=W2xsqY_qQpiA89_KnmOvpw&go=1&utm_source=Original_Original&utm_medium=Original&utm_content=35109ff5-20ba-4aba-9a2b-889953073670_none_Luke%20Combs_none_none_none_20251218_https%3A%2F%2Ftwia.lukecombs.com%2F_sony-music-nashville_US_lc.lnk.to%2Fthewayiam" target="_blank" class="spotify">Pre-save on Spotify</a>
+            <a href="https://music.apple.com/us/album/1862634688" target="_blank" class="apple">Pre-add on Apple Music</a>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        // 1. Submit Form
+        document.getElementById('marketing-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const data = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                postcode: document.getElementById('postcode').value
+            };
+            socket.emit('submitUserData', data);
+        });
+
+        socket.on('registrationSuccess', () => {
+            document.getElementById('landing-view').classList.remove('active');
+            document.getElementById('song-view').classList.add('active');
+        });
+
+        // 2. Request Song
+        function requestSong(title, url) {
+            const song = { title: title, url: url, requester: document.getElementById('name').value };
+            socket.emit('requestSong', song);
+
+            // Move to Thank You
+            document.getElementById('song-view').classList.remove('active');
+            document.getElementById('thank-you-view').classList.add('active');
+        }
+    </script>
+</body>
+</html>
