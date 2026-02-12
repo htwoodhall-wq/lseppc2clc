@@ -13,7 +13,7 @@ const marketingData = [];
 // Jukebox Queue
 let musicQueue = [];
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
 io.on('connection', (socket) => {
     // On connect, send current queue to the Host only
